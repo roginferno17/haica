@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Article Summariser</title>
+  <link href="https://fonts.googleapis.com/css2?family=Lora:ital,wght@0,400;0,500;1,400&family=DM+Sans:wght@400;500&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'DM Sans', sans-serif;
+      background: #f5f3ee;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 1.5rem;
+    }
+
+    #app {
+      background: #9f8b8b;
+      border-radius: 16px;
+      border: 1px solid #e0ddd6;
+      width: 100%;
+      max-width: 680px;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.06);
+    }
+
+    #chat-header {
+      border-bottom: 1px solid #e0ddd6;
+      padding: 1rem 1.25rem;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .dot { width: 8px; height: 8px; border-radius: 50%; background: #1D9E75; }
+
+    #chat-header h2 {
+      font-family: 'Lora', serif;
+      font-size: 16px;
+      font-weight: 500;
+      color: #c10404;
+    }
+
+    #chat-header span { font-size: 12px; color: #999; margin-left: auto; }
+
+    #messages {
+      padding: 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 1rem;
+      min-height: 320px;
+      max-height: 420px;
+      overflow-y: auto;
+    }
+
+    .msg { display: flex; flex-direction: column; gap: 4px; max-width: 88%; }
+    .msg.bot { align-self: flex-start; }
+    .msg.user { align-self: flex-end; }
+
+    .msg-label { font-size: 11px; color: #aaa; padding: 0 4px; }
+    .msg.user .msg-label { text-align: right; }
+
+    .bubble {
+      padding: 0.75rem 1rem;
+      border-radius: 14px;
+      font-size: 14px;
+      line-height: 1.75;
+      border: 1px solid #e8e4dc;
+      background: #b2852a;
+      color: #2a2a2a;
+    }
+
+    .bubble.user {
+      background: #e8f4f0;
+      border-color: #b5d9cc;
+      color: #1a3d32;
+    }
+
+    .bubble.summary {
+      font-family: 'Lora', serif;
+      font-size: 14.5px;
+      white-space: pre-wrap;
+    }
+
+    .bubble img.preview {
+      max-width: 160px;
+      border-radius: 8px;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    .typing { display: flex; gap: 5px; padding: 6px 0; align-items: center; }
+    .typing span {
+      width: 7px; height: 7px; border-radius: 50%;
+      background: #aaa;
+      animation: bounce 1.2s infinite;
+    }
+    .typing span:nth-child(2) { animation-delay: 0.2s; }
+    .typing span:nth-child(3) { animation-delay: 0.4s; }
+
+    @keyframes bounce {
+      0%,60%,100% { transform: translateY(0); opacity: 0.5; }
+      30% { transform: translateY(-5px); opacity: 1; }
+    }
+
+    #input-area {
+      border-top: 1px solid #e0ddd6;
+      padding: 1rem 1.25rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.6rem;
+    }
+
+    #drop-zone {
+      border: 1.5px dashed #c8c4bc;
+      border-radius: 12px;
+      padding: 1.25rem;
+      text-align: center;
+      cursor: pointer;
+      color: #888;
+      font-size: 13px;
+      transition: background 0.15s;
+    }
+
+    #drop-zone:hover, #drop-zone.over { background: #f5f3ee; }
+    #drop-zone .icon { font-size: 22px; display: block; margin-bottom: 6px; }
+
+    #file-input { display: none; }
+
+    #preview-strip {
+      display: none;
+      align-items: center;
+      gap: 10px;
+      padding: 0.5rem 0.75rem;
+      background: #f5f3ee;
+      border-radius: 10px;
+      border: 1px solid #e0ddd6;
+    }
+
+    #preview-strip img { height: 46px; border-radius: 6px; object-fit: cover; }
+    #preview-strip span { font-size: 12px; color: #888; flex: 1; }
+
+    #remove-btn {
+      font-size: 12px; cursor: pointer;
+      color: #c0392b; background: none; border: none; padding: 0 4px;
+    }
+
+    #send-row { display: flex; gap: 8px; }
+
+    #q-input {
+      flex: 1;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px;
+      padding: 0 12px;
+      height: 36px;
+      border-radius: 8px;
+      border: 1px solid #d0ccc4;
+      background: #fff;
+      color: #1a1a1a;
+      outline: none;
+    }
+
+    #q-input:focus { border-color: #1D9E75; }
+
+    #send-btn {
+      height: 36px; padding: 0 16px;
+      font-family: 'DM Sans', sans-serif;
+      font-size: 13px; font-weight: 500;
+      border-radius: 8px;
+      border: 1px solid #d0ccc4;
+      background: #fff;
+      color: #1a1a1a;
+      cursor: pointer;
+      transition: background 0.1s;
+      white-space: nowrap;
+    }
+
+    #send-btn:hover { background: #f5f3ee; }
+    #send-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    #error { font-size: 12px; color: #c0392b; padding: 0 4px; display: none; }
+  </style>
+</head>
+<body>
+<div id="app">
+  <div id="chat-header">
+    <div class="dot"></div>
+    <h2>Article Summariser</h2>
+    <span>powered by Claude</span>
+  </div>
+
+  <div id="messages">
+    <div class="msg bot">
+      <div class="msg-label">assistant</div>
+      <div class="bubble">Upload a photo of any article and I'll give you a warm, story-style summary. You can also ask a follow-up question after.</div>
+    </div>
+  </div>
+
+  <div id="input-area">
+    <div id="drop-zone" onclick="document.getElementById('file-input').click()">
+      <span class="icon">📄</span>
+      Click to upload article image, or drag and drop
+    </div>
+    <input type="file" id="file-input" accept="image/*" />
+
+    <div id="preview-strip">
+      <img id="prev-img" src="" alt="preview" />
+      <span id="prev-name">image.jpg</span>
+      <button id="remove-btn" onclick="removeImage()">✕ remove</button>
+    </div>
+
+    <div id="send-row">
+      <input type="text" id="q-input" placeholder="Ask a question (optional)..." />
+      <button id="send-btn" onclick="handleSend()">Summarise →</button>
+    </div>
+    <div id="error"></div>
+  </div>
+</div>
+
+<script>
+  let imgBase64 = null, imgType = null;
+  let history = [];
+  let busy = false;
+
+  const fileInput = document.getElementById('file-input');
+  const dropZone = document.getElementById('drop-zone');
+  const previewStrip = document.getElementById('preview-strip');
+  const prevImg = document.getElementById('prev-img');
+  const prevName = document.getElementById('prev-name');
+  const sendBtn = document.getElementById('send-btn');
+  const messages = document.getElementById('messages');
+  const qInput = document.getElementById('q-input');
+  const errorEl = document.getElementById('error');
+
+  dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('over'); });
+  dropZone.addEventListener('dragleave', () => dropZone.classList.remove('over'));
+  dropZone.addEventListener('drop', e => {
+    e.preventDefault(); dropZone.classList.remove('over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) loadFile(f);
+  });
+  fileInput.addEventListener('change', () => { if (fileInput.files[0]) loadFile(fileInput.files[0]); });
+
+  function loadFile(file) {
+    imgType = file.type;
+    prevName.textContent = file.name;
+    const reader = new FileReader();
+    reader.onload = e => {
+      const result = e.target.result;
+      imgBase64 = result.split(',')[1];
+      prevImg.src = result;
+      previewStrip.style.display = 'flex';
+      dropZone.style.display = 'none';
+    };
+    reader.readAsDataURL(file);
+    hideErr();
+  }
+
+  function removeImage() {
+    imgBase64 = null; imgType = null;
+    previewStrip.style.display = 'none';
+    dropZone.style.display = 'block';
+    fileInput.value = '';
+  }
+
+  function showErr(msg) { errorEl.textContent = msg; errorEl.style.display = 'block'; }
+  function hideErr() { errorEl.style.display = 'none'; }
+
+  function addMsg(role, content, typing = false) {
+    const wrap = document.createElement('div');
+    wrap.className = `msg ${role === 'assistant' ? 'bot' : 'user'}`;
+    const label = document.createElement('div');
+    label.className = 'msg-label';
+    label.textContent = role === 'assistant' ? 'assistant' : 'you';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble' + (role === 'assistant' && !typing ? ' summary' : '');
+    if (typing) bubble.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+    else if (typeof content === 'string') bubble.textContent = content;
+    else bubble.appendChild(content);
+    wrap.appendChild(label); wrap.appendChild(bubble);
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+    return { wrap, bubble };
+  }
+
+  function addUserMsg(text, imgSrc) {
+    const wrap = document.createElement('div');
+    wrap.className = 'msg user';
+    const label = document.createElement('div');
+    label.className = 'msg-label'; label.textContent = 'you';
+    const bubble = document.createElement('div');
+    bubble.className = 'bubble user';
+    if (imgSrc) {
+      const img = document.createElement('img');
+      img.src = imgSrc; img.className = 'preview';
+      bubble.appendChild(img);
+    }
+    if (text) { const t = document.createElement('span'); t.textContent = text; bubble.appendChild(t); }
+    wrap.appendChild(label); wrap.appendChild(bubble);
+    messages.appendChild(wrap);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  async function handleSend() {
+    if (busy) return;
+    hideErr();
+    const q = qInput.value.trim();
+    if (!imgBase64 && history.length === 0) { showErr('Please upload an article image first.'); return; }
+
+    busy = true; sendBtn.disabled = true; qInput.disabled = true;
+    sendBtn.textContent = 'Thinking...';
+
+    let userContent = [];
+    if (imgBase64) {
+      userContent.push({ type: 'image', source: { type: 'base64', media_type: imgType, data: imgBase64 } });
+      userContent.push({ type: 'text', text: q ? `Summarise this article. Also answer: ${q}` : 'Summarise this article.' });
+      addUserMsg(q || 'Summarise this article', prevImg.src);
+    } else {
+      userContent.push({ type: 'text', text: q });
+      addUserMsg(q, null);
+    }
+
+    const { wrap: tw, bubble: tb } = addMsg('assistant', '', true);
+    history.push({ role: 'user', content: userContent });
+
+    try {
+      const res = await fetch('/api/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ messages: history })
+      });
+      const data = await res.json();
+      if (data.error) {
+        tw.remove(); showErr('Error: ' + data.error.message);
+        history.pop();
+      } else {
+        const text = data.content.map(b => b.text || '').join('');
+        tb.innerHTML = ''; tb.classList.add('summary'); tb.textContent = text;
+        messages.scrollTop = messages.scrollHeight;
+        history.push({ role: 'assistant', content: text });
+        removeImage(); qInput.value = '';
+        qInput.placeholder = 'Ask a follow-up question...';
+      }
+    } catch (err) {
+      tw.remove(); showErr('Something went wrong. Is the server running?');
+      history.pop();
+    }
+
+    busy = false; sendBtn.disabled = false; qInput.disabled = false;
+    sendBtn.textContent = 'Summarise →';
+  }
+
+  qInput.addEventListener('keydown', e => { if (e.key === 'Enter') handleSend(); });
+</script>
+</body>
+</html>
